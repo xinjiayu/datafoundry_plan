@@ -6,19 +6,42 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"encoding/json"
 )
+
+type CustomPrice struct {
+	Default float64 `json:"default,omitempty"`
+	Max     float64 `json:"max,omitempty"`
+	Price   float64 `json:"price,omitempty"`
+	Unit    string  `json:"unit,omitempty"`
+	Step    float64 `json:"step,omitempty"`
+	Desc    string  `json:"desc,omitempty"`
+}
+
+func (plan *Plan) VO2PO() {
+	if len(plan.Custom) == 0 {
+		plan.CustomPrices = ""
+	} else {
+		bs, _ := json.Marshal(plan.Custom)
+		plan.CustomPrices = string(bs)
+	}
+}
 
 type Plan struct {
 	Id             int
-	Plan_id        string    `json:"plan_id,omitempty"`
-	Plan_name      string    `json:"plan_name,omitempty"`
-	Plan_type      string    `json:"plan_type,omitempty"`
-	Belong         string    `json:"belong,omitempty"`
-	Plan_level     int       `json:"plan_level,omitempty"`
-	Specification1 string    `json:"specification1,omitempty"`
-	Specification2 string    `json:"specification2,omitempty"`
-	Description    string    `json:"description, omitempty"`
-	Price          float32   `json:"price,omitempty"`
+	Plan_id        string  `json:"plan_id,omitempty"`
+	Plan_name      string  `json:"plan_name,omitempty"`
+	Plan_type      string  `json:"plan_type,omitempty"`
+	Belong         string  `json:"belong,omitempty"`
+	Plan_level     int     `json:"plan_level,omitempty"`
+	Specification1 string  `json:"specification1,omitempty"`
+	Specification2 string  `json:"specification2,omitempty"`
+	Description    string  `json:"description, omitempty"`
+	Price          float32 `json:"price,omitempty"`
+
+	Custom map[string]CustomPrice `json:"customize,omitempty"` // vo
+	CustomPrices string                                        // po
+
 	Cycle          string    `json:"cycle,omitempty"`
 	Create_time    time.Time `json:"creation_time,omitempty"`
 	Region_id      int       `json:"region_id,omitempty"`
@@ -31,17 +54,33 @@ type PlanRegion struct {
 	Identification  string `json:"identification"`
 }
 
+func (result *Result) PO2VO() {
+	if len(result.CustomPrices) == 0 {
+		result.Custom = nil
+	} else {
+		var custom map[string]CustomPrice
+		err := json.Unmarshal([]byte(result.CustomPrices), &custom)
+		if err == nil {
+			result.Custom = custom
+		}
+	}
+}
+
 type Result struct {
-	Id              int       `json:"id,omitempty"`
-	Plan_id         string    `json:"plan_id,omitempty"`
-	Plan_name       string    `json:"plan_name,omitempty"`
-	Plan_type       string    `json:"plan_type,omitempty"`
-	Belong          string    `json:"belong,omitempty"`
-	Plan_level      int       `json:"plan_level,omitempty"`
-	Specification1  string    `json:"specification1,omitempty"`
-	Specification2  string    `json:"specification2,omitempty"`
-	Description     string    `json:"description, omitempty"`
-	Price           float32   `json:"price,omitempty"`
+	Id              int     `json:"id,omitempty"`
+	Plan_id         string  `json:"plan_id,omitempty"`
+	Plan_name       string  `json:"plan_name,omitempty"`
+	Plan_type       string  `json:"plan_type,omitempty"`
+	Belong          string  `json:"belong,omitempty"`
+	Plan_level      int     `json:"plan_level,omitempty"`
+	Specification1  string  `json:"specification1,omitempty"`
+	Specification2  string  `json:"specification2,omitempty"`
+	Description     string  `json:"description, omitempty"`
+	Price           float32 `json:"price,omitempty"`
+
+	Custom map[string]CustomPrice `json:"customize,omitempty"` // vo
+	CustomPrices string                                        // po
+
 	Cycle           string    `json:"cycle,omitempty"`
 	Region          string    `json:"region,omitempty"`
 	Region_describe string    `json:"region_describe,omitempty"`
@@ -52,18 +91,23 @@ type Result struct {
 func CreatePlan(db *sql.DB, planInfo *Plan) (string, error) {
 	logger.Info("Model begin create a plan.")
 
+	planInfo.VO2PO()
+
 	nowstr := time.Now().Format("2006-01-02 15:04:05.999999")
 	sqlstr := fmt.Sprintf(`insert into DF_PLAN (
 				PLAN_ID, PLAN_NAME, PLAN_TYPE, BELONG, PLAN_LEVEL, SPECIFICATION1, SPECIFICATION2,
-				DESCRIPTION, PRICE, CYCLE, CREATE_TIME, REGION_ID, STATUS
+				DESCRIPTION, PRICE, CUSTOM_PRICES, CYCLE,
+				CREATE_TIME, REGION_ID, STATUS
 				) values (
-				?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+				?, ?, ?, ?, ?, ?, ?,
+				?, ?, ?,
 				'%s', ?, '%s')`,
 		nowstr, "A")
 
 	_, err := db.Exec(sqlstr,
 		planInfo.Plan_id, planInfo.Plan_name, planInfo.Plan_type, planInfo.Belong, planInfo.Plan_level, planInfo.Specification1, planInfo.Specification2,
-		planInfo.Description, planInfo.Price, planInfo.Cycle, planInfo.Region_id)
+		planInfo.Description, planInfo.Price, planInfo.CustomPrices, planInfo.Cycle,
+		planInfo.Region_id)
 
 	logger.Info("Model end create a plan.")
 	return planInfo.Plan_id, err
@@ -84,6 +128,8 @@ func DeletePlan(db *sql.DB, planId string) error {
 func ModifyPlan(db *sql.DB, planInfo *Plan) error {
 	logger.Info("Model begin modify a plan.")
 	defer logger.Info("Model begin modify a plan.")
+
+	planInfo.VO2PO()
 
 	plan, err := RetrievePlanByID(db, planInfo.Plan_id, "")
 	if err != nil {
@@ -166,7 +212,7 @@ func queryPlans(db *sql.DB, sqlWhere string, limit int, offset int64, sqlParams 
 					P.SPECIFICATION1,
 					P.SPECIFICATION2,
 					P.DESCRIPTION,
-					P.PRICE, P.CYCLE,
+					P.PRICE, p.CUSTOM_PRICES, P.CYCLE,
 					R.IDENTIFICATION, R.REGION_DESCRIBE,
 					P.CREATE_TIME, P.STATUS
 					from DF_PLAN P, DF_PLAN_REGION R
@@ -192,11 +238,14 @@ func queryPlans(db *sql.DB, sqlWhere string, limit int, offset int64, sqlParams 
 		err := rows.Scan(
 			&plan.Id, &plan.Plan_id, &plan.Plan_name, &plan.Plan_type, &plan.Belong, &plan.Plan_level,
 			&plan.Specification1, &plan.Specification2, &plan.Description,
-			&plan.Price, &plan.Cycle, &plan.Region, &plan.Region_describe, &plan.Create_time, &plan.Status,
+			&plan.Price, &plan.CustomPrices, &plan.Cycle, &plan.Region, &plan.Region_describe, &plan.Create_time, &plan.Status,
 		)
 		if err != nil {
 			return nil, err
 		}
+
+		plan.PO2VO()
+
 		//validateApp(s) // already done in scanAppWithRows
 		plans = append(plans, plan)
 	}
