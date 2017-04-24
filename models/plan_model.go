@@ -10,12 +10,12 @@ import (
 )
 
 type CustomPrice struct {
-	Default string `json:"default,omitempty"`
-	Max     string `json:"max,omitempty"`
-	Price   string `json:"price,omitempty"`
-	Unit    string `json:"unit,omitempty"`
-	Step    string `json:"step,omitempty"`
-	Desc    string `json:"desc,omitempty"`
+	Default float64 `json:"default,omitempty"`
+	Max     float64 `json:"max,omitempty"`
+	Price   float64 `json:"price,omitempty"`
+	Unit    string  `json:"unit,omitempty"`
+	Step    float64 `json:"step,omitempty"`
+	Desc    string  `json:"desc,omitempty"`
 }
 
 func (plan *Plan) VO2PO() {
