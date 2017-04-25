@@ -62,6 +62,8 @@ func (result *Result) PO2VO() {
 		err := json.Unmarshal([]byte(result.CustomPrices), &custom)
 		if err == nil {
 			result.Custom = custom
+		} else {
+			result.Custom = nil
 		}
 	}
 }
