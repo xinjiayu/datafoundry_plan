@@ -19,6 +19,8 @@ var dbUpgraders = []DatabaseUpgrader{
 	newDatabaseUpgrader_0(),
 	newDatabaseUpgrader_1(),
 	newDatabaseUpgrader_2(),
+	newDatabaseUpgrader_3(),
+	newDatabaseUpgrader_4(),
 }
 
 const (
