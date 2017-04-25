@@ -40,7 +40,7 @@ type Plan struct {
 	Price          float32 `json:"price,omitempty"`
 
 	Custom map[string]CustomPrice `json:"customize,omitempty"` // vo
-	CustomPrices string                                        // po
+	CustomPrices string           `json:"_,omitempty"`         // po
 
 	Cycle          string    `json:"cycle,omitempty"`
 	Create_time    time.Time `json:"creation_time,omitempty"`
@@ -79,7 +79,7 @@ type Result struct {
 	Price           float32 `json:"price,omitempty"`
 
 	Custom map[string]CustomPrice `json:"customize,omitempty"` // vo
-	CustomPrices string                                        // po
+	CustomPrices string           `json:"_,omitempty"`         // po
 
 	Cycle           string    `json:"cycle,omitempty"`
 	Region          string    `json:"region,omitempty"`
